@@ -14,18 +14,18 @@ Delivery channels:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
-import os
 import time
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class HITLDecision(str, Enum):
+class HITLDecision(StrEnum):
     APPROVE = "approve"
     REJECT  = "reject"
     MODIFY  = "modify"
@@ -70,7 +70,7 @@ class HITLGate:
         webhook: str = "",
         slack_webhook: str = "",
         timeout_seconds: int = 3600,
-        auto_approve_after: Optional[int] = None,
+        auto_approve_after: int | None = None,
         console_fallback: bool = True,
     ) -> None:
         self.webhook = webhook
@@ -146,7 +146,7 @@ class HITLGate:
 
         try:
             return await asyncio.wait_for(future, timeout=self.timeout_seconds)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"HITLGate checkpoint {checkpoint_id} timed out.")
             if self.auto_approve_after and self.timeout_seconds >= self.auto_approve_after:
                 return CheckpointResult(
@@ -181,7 +181,7 @@ class HITLGate:
         self._pending[checkpoint_id] = future
         try:
             return await asyncio.wait_for(future, timeout=self.timeout_seconds)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return CheckpointResult(
                 decision=HITLDecision.REJECT,
                 reason="timed out waiting for Slack response",
@@ -196,11 +196,9 @@ class HITLGate:
         if choice.startswith("a"):
             return CheckpointResult(decision=HITLDecision.APPROVE, reviewer="console")
         elif choice.startswith("m"):
-            modified = input("Enter modified state (JSON or string): ").strip()
-            try:
+            modified: Any = input("Enter modified state (JSON or string): ").strip()
+            with contextlib.suppress(json.JSONDecodeError):
                 modified = json.loads(modified)
-            except json.JSONDecodeError:
-                pass
             return CheckpointResult(
                 decision=HITLDecision.MODIFY,
                 modified_state=modified,

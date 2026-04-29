@@ -9,7 +9,7 @@ description = "Zero-boilerplate deployment for AI agent frameworks — LangGraph
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Eren Atmaca", email = "erenatmaca89@gmail.com" }]
+authors = [{ name = "Aaron"}]
 keywords = ["ai", "agents", "deployment", "kubernetes", "docker", "langgraph", "crewai"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -29,6 +29,7 @@ dependencies = [
     "opentelemetry-api>=1.20",
     "opentelemetry-sdk>=1.20",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20",
+    "langgraph>=1.1.10",
 ]
 
 [project.optional-dependencies]

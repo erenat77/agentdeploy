@@ -31,17 +31,17 @@ class CloudRunTarget:
         min_instances: int = 0,
         max_instances: int = 10,
         concurrency: int = 80,
-    ) -> "CloudRunTarget":
+    ) -> CloudRunTarget:
         self._min_instances = min_instances
         self._max_instances = max_instances
         self._concurrency = concurrency
         return self
 
-    def with_output_dir(self, path: str) -> "CloudRunTarget":
+    def with_output_dir(self, path: str) -> CloudRunTarget:
         self._output_dir = path
         return self
 
-    def build(self) -> "CloudRunResult":
+    def build(self) -> CloudRunResult:
         cfg = self.app.to_config()
         adapter = self.app._adapter
         svc = self.service_name or cfg.name

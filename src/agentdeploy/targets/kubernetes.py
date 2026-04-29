@@ -12,10 +12,8 @@ Outputs:
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -35,13 +33,13 @@ class KubernetesTarget:
     _autoscale_min: int = field(default=1, init=False)
     _autoscale_max: int = field(default=5, init=False)
     _autoscale_cpu_pct: int = field(default=70, init=False)
-    _hitl: Optional[HITLConfig] = field(default=None, init=False)
-    _otel: Optional[OtelConfig] = field(default=None, init=False)
+    _hitl: HITLConfig | None = field(default=None, init=False)
+    _otel: OtelConfig | None = field(default=None, init=False)
     _output_dir: str = field(default="./deploy", init=False)
     _python_version: str = field(default="3.11", init=False)
     _base_image: str = field(default="python:3.11-slim", init=False)
 
-    def with_replicas(self, count: int) -> "KubernetesTarget":
+    def with_replicas(self, count: int) -> KubernetesTarget:
         self._replicas = count
         return self
 
@@ -51,7 +49,7 @@ class KubernetesTarget:
         min: int = 1,
         max: int = 10,
         cpu_percent: int = 70,
-    ) -> "KubernetesTarget":
+    ) -> KubernetesTarget:
         self._autoscale_min = min
         self._autoscale_max = max
         self._autoscale_cpu_pct = cpu_percent
@@ -63,7 +61,7 @@ class KubernetesTarget:
         webhook: str = "",
         slack_channel: str = "",
         timeout_seconds: int = 3600,
-    ) -> "KubernetesTarget":
+    ) -> KubernetesTarget:
         self._hitl = HITLConfig(
             webhook=webhook,
             slack_channel=slack_channel,
@@ -76,22 +74,22 @@ class KubernetesTarget:
         *,
         endpoint: str = "http://otel-collector:4317",
         service_name: str = "",
-    ) -> "KubernetesTarget":
+    ) -> KubernetesTarget:
         self._otel = OtelConfig(
             endpoint=endpoint,
             service_name=service_name or self.app.name,
         )
         return self
 
-    def with_output_dir(self, path: str) -> "KubernetesTarget":
+    def with_output_dir(self, path: str) -> KubernetesTarget:
         self._output_dir = path
         return self
 
-    def with_base_image(self, image: str) -> "KubernetesTarget":
+    def with_base_image(self, image: str) -> KubernetesTarget:
         self._base_image = image
         return self
 
-    def build(self) -> "BuildResult":
+    def build(self) -> BuildResult:
         """Generate all deployment artifacts and write them to disk."""
         cfg = self.app.to_config()
         adapter = self.app._adapter
@@ -154,13 +152,17 @@ class KubernetesTarget:
         env_lines = "\n".join(
             f'ENV {k}="{v}"' for k, v in cfg.env_vars.items()
         )
+        # Healthcheck uses stdlib urllib so we don't need curl — keeps the
+        # image slim and avoids an apt-get layer + cache invalidation.
+        probe_url = f"http://localhost:{self.app._port}{self.app._health_path}"
+        healthcheck_probe = (
+            "python -c \"import urllib.request,sys; "
+            f"sys.exit(0 if urllib.request.urlopen('{probe_url}',timeout=5)"
+            ".status==200 else 1)\""
+        )
         return f"""FROM {self._base_image}
 
 WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \\
-    curl \\
-    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt* ./
 RUN pip install --no-cache-dir fastapi uvicorn{(" " + pip_install) if pip_install else ""} \\
@@ -173,7 +175,7 @@ COPY . .
 EXPOSE {self.app._port}
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \\
-    CMD curl -f http://localhost:{self.app._port}{self.app._health_path} || exit 1
+    CMD {healthcheck_probe} || exit 1
 
 CMD ["python", "server.py"]
 """

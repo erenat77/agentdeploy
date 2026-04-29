@@ -8,7 +8,7 @@ to specify the framework.
 
 from __future__ import annotations
 
-from typing import Any, Type
+from typing import Any
 
 from agentdeploy.adapters.base import AgentAdapter
 
@@ -94,11 +94,24 @@ if __name__ == "__main__":
 class _OpenAIAgentAdapter(AgentAdapter):
     framework_name = "openai-agents"
 
+    # Modules that legitimately host the OpenAI Agents SDK Agent class.
+    _MODULE_PREFIXES = ("agents.", "openai.agents", "openai_agents")
+
     def validate(self) -> None:
         module = type(self.agent).__module__
-        if "openai" not in module and "agents" not in module:
+        cls_name = type(self.agent).__name__
+        # Be strict: match real module roots, not any module containing
+        # the substring "agents" (which would otherwise catch
+        # langchain.agents, llama_index.agent, etc.).
+        if not (module == "agents" or module.startswith(self._MODULE_PREFIXES)):
             raise ValueError(
-                f"Expected an OpenAI Agents SDK Agent, got {type(self.agent).__name__}."
+                f"Expected an OpenAI Agents SDK Agent, got {cls_name} from "
+                f"module {module!r}. Install with `pip install openai-agents` "
+                "and pass the Agent instance to .wrap()."
+            )
+        if cls_name != "Agent":
+            raise ValueError(
+                f"Expected an OpenAI Agents SDK Agent class, got {cls_name}."
             )
 
     def pip_extras(self) -> list[str]:
@@ -175,7 +188,7 @@ class AdapterRegistry:
     type name and module path. Ordered from most-specific to most-general.
     """
 
-    _registry: list[tuple[str, Type[AgentAdapter]]] = [
+    _registry: list[tuple[str, type[AgentAdapter]]] = [
         ("langgraph", _LangGraphAdapter),
         ("crewai", _CrewAIAdapter),
         ("openai", _OpenAIAgentAdapter),
@@ -197,8 +210,12 @@ class AdapterRegistry:
         # CrewAI
         if "crewai" in module or cls_name == "Crew":
             return _CrewAIAdapter(agent)
-        # OpenAI Agents SDK
-        if "openai" in module and "agents" in module:
+        # OpenAI Agents SDK — strict module-root match to avoid catching
+        # langchain.agents / llama_index.agent / etc.
+        if (
+            module == "agents"
+            or module.startswith(_OpenAIAgentAdapter._MODULE_PREFIXES)
+        ) and cls_name == "Agent":
             return _OpenAIAgentAdapter(agent)
         # Fallback: any callable
         if callable(agent):
@@ -210,6 +227,6 @@ class AdapterRegistry:
         )
 
     @classmethod
-    def register(cls, key: str, adapter_class: Type[AgentAdapter]) -> None:
+    def register(cls, key: str, adapter_class: type[AgentAdapter]) -> None:
         """Register a custom adapter for a new framework."""
         cls._registry.insert(0, (key, adapter_class))

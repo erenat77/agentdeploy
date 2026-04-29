@@ -23,11 +23,26 @@ class LambdaTarget:
     _timeout_seconds: int = field(default=0, init=False)
     _output_dir: str = field(default="./deploy", init=False)
 
-    def with_output_dir(self, path: str) -> "LambdaTarget":
+    def with_output_dir(self, path: str) -> LambdaTarget:
         self._output_dir = path
         return self
 
-    def build(self) -> "LambdaResult":
+    def build(self) -> LambdaResult:
+        # Fail fast at build time rather than shipping a placeholder ARN that
+        # turns into an obscure AWS deploy failure later.
+        if not self.role_arn:
+            raise ValueError(
+                "LambdaTarget requires an IAM role ARN. Pass it via "
+                "deploy(app).to_lambda(role_arn='arn:aws:iam::ACCOUNT:role/...'). "
+                "The role must allow lambda.amazonaws.com to assume it and "
+                "include AWSLambdaBasicExecutionRole at minimum."
+            )
+        if not self.role_arn.startswith("arn:aws:iam::"):
+            raise ValueError(
+                f"role_arn must be a full IAM role ARN starting with "
+                f"'arn:aws:iam::ACCOUNT:role/...', got: {self.role_arn!r}"
+            )
+
         cfg = self.app.to_config()
         adapter = self.app._adapter
         mem = self._memory_mb or cfg.memory_mb
@@ -51,7 +66,7 @@ class LambdaTarget:
             output_dir=str(out),
             next_steps=[
                 f"cd {out}",
-                f"sam build",
+                "sam build",
                 f"sam deploy --region {self.region} --stack-name {self.function_name}",
             ],
         )
@@ -113,7 +128,7 @@ async def _invoke(user_input):
                         "Runtime": "python3.11",
                         "MemorySize": mem,
                         "Timeout": timeout,
-                        "Role": self.role_arn or "arn:aws:iam::ACCOUNT:role/FILL_IN",
+                        "Role": self.role_arn,
                         "Environment": {"Variables": env},
                         "Events": {
                             "Api": {

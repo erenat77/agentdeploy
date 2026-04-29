@@ -17,17 +17,17 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import time
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
-from typing import Any, AsyncGenerator, Optional
+from dataclasses import dataclass
+from typing import Any
 
 try:
     from opentelemetry import trace
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
@@ -88,7 +88,7 @@ class AgentSpan:
     def elapsed_ms(self) -> float:
         return (time.perf_counter() - self._start_time) * 1000
 
-    def _estimate_cost(self, prompt: int, completion: int, model: str) -> Optional[float]:
+    def _estimate_cost(self, prompt: int, completion: int, model: str) -> float | None:
         rates = COST_PER_1K_TOKENS.get(model)
         if not rates:
             return None

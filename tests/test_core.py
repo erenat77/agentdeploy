@@ -3,9 +3,9 @@ Unit tests for AgentDeploy SDK core.
 Run: pytest tests/ -v
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import MagicMock
+
+import pytest
 
 
 class MockCompiledStateGraph:
@@ -102,7 +102,7 @@ class TestKubernetesTarget:
     def test_build_creates_files(self, tmp_path):
         from agentdeploy import deploy
         app = self._make_app()
-        result = (
+        (
             deploy(app)
             .to_kubernetes(namespace="test", image="test-agent:1.0.0")
             .with_output_dir(str(tmp_path))
@@ -119,9 +119,10 @@ class TestKubernetesTarget:
 
     def test_deployment_yaml_has_correct_name(self, tmp_path):
         import yaml
+
         from agentdeploy import deploy
         app = self._make_app()
-        result = (
+        (
             deploy(app)
             .to_kubernetes(namespace="prod")
             .with_output_dir(str(tmp_path))
@@ -133,9 +134,10 @@ class TestKubernetesTarget:
 
     def test_hpa_respects_autoscale_config(self, tmp_path):
         import yaml
+
         from agentdeploy import deploy
         app = self._make_app()
-        result = (
+        (
             deploy(app)
             .to_kubernetes()
             .with_autoscale(min=2, max=20, cpu_percent=50)
@@ -149,7 +151,7 @@ class TestKubernetesTarget:
     def test_dockerfile_contains_pip_extras(self, tmp_path):
         from agentdeploy import deploy
         app = self._make_app()
-        result = (
+        (
             deploy(app)
             .to_kubernetes()
             .with_output_dir(str(tmp_path))
@@ -158,6 +160,17 @@ class TestKubernetesTarget:
         dockerfile = (tmp_path / "test-agent" / "Dockerfile").read_text()
         assert "langgraph" in dockerfile
         assert "langchain-core" in dockerfile
+
+    def test_dockerfile_uses_urllib_healthcheck_not_curl(self, tmp_path):
+        """Generated image should not need curl — stdlib urllib instead."""
+        from agentdeploy import deploy
+        app = self._make_app()
+        deploy(app).to_kubernetes().with_output_dir(str(tmp_path)).build()
+        dockerfile = (tmp_path / "test-agent" / "Dockerfile").read_text()
+        assert "curl" not in dockerfile
+        assert "apt-get" not in dockerfile
+        assert "urllib.request" in dockerfile
+        assert "HEALTHCHECK" in dockerfile
 
     def test_build_result_has_next_steps(self, tmp_path):
         from agentdeploy import deploy
@@ -185,6 +198,7 @@ class TestDockerComposeTarget:
 
     def test_redis_sidecar_added(self, tmp_path):
         import yaml
+
         from agentdeploy import AgentApp, deploy
         app = AgentApp("compose-agent").wrap(_make_crewai())
         result = (
@@ -196,11 +210,102 @@ class TestDockerComposeTarget:
         compose = yaml.safe_load(Path(result.compose_path).read_text())
         assert "redis" in compose["services"]
 
+    def test_compose_healthcheck_uses_python_not_curl(self, tmp_path):
+        """Compose healthcheck should use stdlib urllib via python -c, not curl."""
+        import yaml
+
+        from agentdeploy import AgentApp, deploy
+        app = AgentApp("compose-agent").wrap(_make_crewai())
+        result = (
+            deploy(app)
+            .to_docker_compose(output_dir=str(tmp_path))
+            .build()
+        )
+        compose = yaml.safe_load(Path(result.compose_path).read_text())
+        test = compose["services"]["compose-agent"]["healthcheck"]["test"]
+        assert test[0:3] == ["CMD", "python", "-c"]
+        assert "urllib.request" in test[3]
+        assert "curl" not in " ".join(test)
+
+
+class TestLambdaTarget:
+    def _make_app(self):
+        from agentdeploy import AgentApp
+        return AgentApp("lambda-agent").wrap(_make_langgraph())
+
+    def test_build_rejects_missing_role_arn(self):
+        from agentdeploy import deploy
+        with pytest.raises(ValueError, match="role_arn"):
+            deploy(self._make_app()).to_lambda().build()
+
+    def test_build_rejects_malformed_role_arn(self):
+        from agentdeploy import deploy
+        with pytest.raises(ValueError, match="arn:aws:iam::"):
+            deploy(self._make_app()).to_lambda(role_arn="not-an-arn").build()
+
+    def test_build_writes_role_arn_into_sam_template(self, tmp_path):
+        import yaml
+
+        from agentdeploy import deploy
+        arn = "arn:aws:iam::123456789012:role/lambda-exec"
+        deploy(self._make_app()).to_lambda(role_arn=arn).with_output_dir(
+            str(tmp_path)
+        ).build()
+        sam = yaml.safe_load((tmp_path / "lambda-agent" / "template.yaml").read_text())
+        role = sam["Resources"]["lambdaagent"]["Properties"]["Role"]
+        assert role == arn
+        assert "FILL_IN" not in role
+
+
+class TestAdapterDetection:
+    """Regression tests for module-substring false positives in adapter detection."""
+
+    def test_langchain_agents_not_misdetected_as_openai(self):
+        from agentdeploy.adapters.registry import AdapterRegistry
+
+        class FakeLangChainAgent:
+            def __call__(self, *a, **kw):  # real LC agents are callable
+                return None
+        FakeLangChainAgent.__module__ = "langchain.agents.tool_calling"
+
+        adapter = AdapterRegistry.detect(FakeLangChainAgent())
+        assert adapter.framework_name == "callable"
+
+    def test_llama_index_agent_not_misdetected_as_openai(self):
+        from agentdeploy.adapters.registry import AdapterRegistry
+
+        class FakeLlamaIndexAgent:
+            def __call__(self, *a, **kw):
+                return None
+        # contains both "openai" and "agent" substrings — the old code matched this
+        FakeLlamaIndexAgent.__module__ = "llama_index.agent.openai_runner"
+
+        adapter = AdapterRegistry.detect(FakeLlamaIndexAgent())
+        assert adapter.framework_name == "callable"
+
+    def test_real_openai_agent_still_detected(self):
+        from agentdeploy.adapters.registry import AdapterRegistry
+
+        class Agent:
+            pass
+        Agent.__module__ = "agents"
+        adapter = AdapterRegistry.detect(Agent())
+        assert adapter.framework_name == "openai-agents"
+
+    def test_openai_agents_submodule_detected(self):
+        from agentdeploy.adapters.registry import AdapterRegistry
+
+        class Agent:
+            pass
+        Agent.__module__ = "openai.agents.runner"
+        adapter = AdapterRegistry.detect(Agent())
+        assert adapter.framework_name == "openai-agents"
+
 
 class TestHITLGate:
     @pytest.mark.asyncio
     async def test_console_approve(self, monkeypatch):
-        from agentdeploy import HITLGate, HITLDecision
+        from agentdeploy import HITLDecision, HITLGate
         monkeypatch.setattr("builtins.input", lambda _: "approve")
         gate = HITLGate(console_fallback=True)
         result = await gate.checkpoint({"key": "value"}, description="test")
@@ -208,7 +313,7 @@ class TestHITLGate:
 
     @pytest.mark.asyncio
     async def test_console_reject(self, monkeypatch):
-        from agentdeploy import HITLGate, HITLDecision
+        from agentdeploy import HITLDecision, HITLGate
         monkeypatch.setattr("builtins.input", lambda _: "reject")
         gate = HITLGate(console_fallback=True)
         result = await gate.checkpoint("state", description="test")
@@ -216,7 +321,7 @@ class TestHITLGate:
 
     @pytest.mark.asyncio
     async def test_no_channel_auto_approves(self):
-        from agentdeploy import HITLGate, HITLDecision
+        from agentdeploy import HITLDecision, HITLGate
         gate = HITLGate(console_fallback=False)
         result = await gate.checkpoint("state")
         assert result.decision == HITLDecision.APPROVE
@@ -236,5 +341,5 @@ class TestTelemetry:
         from agentdeploy import Telemetry
         telemetry = Telemetry("test-service", enabled=False)
         with pytest.raises(ValueError):
-            async with telemetry.trace("failing-op") as span:
+            async with telemetry.trace("failing-op"):
                 raise ValueError("test error")

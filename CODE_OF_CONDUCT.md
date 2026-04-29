@@ -30,7 +30,7 @@ Examples of unacceptable behavior:
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may
-be reported to the project maintainer at erenatmaca89@gmail.com. All
+be reported to the project maintainer at erenat77. All
 complaints will be reviewed and investigated promptly and fairly.
 
 ## Attribution

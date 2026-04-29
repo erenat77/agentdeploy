@@ -17,7 +17,6 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.syntax import Syntax
 from rich.table import Table
 
 app = typer.Typer(
@@ -90,7 +89,7 @@ def validate(
         agent_app = _load_app_from_config(cfg_path)
     except Exception as e:
         console.print(f"[red]Config error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     table = Table(title="AgentApp validation", show_header=False)
     table.add_column("Field", style="dim")
@@ -135,7 +134,7 @@ def build(
             agent_app = _load_app_from_config(cfg_path)
         except Exception as e:
             console.print(f"[red]Config load error:[/red] {e}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
     console.print(f"[bold]Building[/bold] {agent_app}")
 
@@ -153,7 +152,7 @@ def build(
         )
     except Exception as e:
         console.print(f"[red]Build failed:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     console.print(Panel(
         "\n".join(f"  [dim]{f}[/dim]" for f in result.files),

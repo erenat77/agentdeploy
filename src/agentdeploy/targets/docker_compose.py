@@ -24,22 +24,22 @@ class DockerComposeTarget:
     _otel_collector: bool = field(default=False, init=False)
     _extra_services: dict = field(default_factory=dict, init=False)
 
-    def with_redis(self) -> "DockerComposeTarget":
+    def with_redis(self) -> DockerComposeTarget:
         """Add a Redis sidecar for shared agent state / queue."""
         self._redis = True
         return self
 
-    def with_otel_collector(self) -> "DockerComposeTarget":
+    def with_otel_collector(self) -> DockerComposeTarget:
         """Add an OpenTelemetry collector sidecar for local trace collection."""
         self._otel_collector = True
         return self
 
-    def with_service(self, name: str, definition: dict) -> "DockerComposeTarget":
+    def with_service(self, name: str, definition: dict) -> DockerComposeTarget:
         """Add an arbitrary extra service to the compose file."""
         self._extra_services[name] = definition
         return self
 
-    def build(self) -> "DockerComposeResult":
+    def build(self) -> DockerComposeResult:
         cfg = self.app.to_config()
         adapter = self.app._adapter
         out = Path(self.output_dir) / cfg.name
@@ -89,6 +89,13 @@ CMD ["python", "server.py"]
             agent_env["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://otel-collector:4317"
             depends_on.append("otel-collector")
 
+        probe_url = f"http://localhost:{self.app._port}{self.app._health_path}"
+        # Stdlib urllib probe — no curl required, no apt-get layer in the image.
+        probe_script = (
+            "import urllib.request,sys; "
+            f"sys.exit(0 if urllib.request.urlopen('{probe_url}',timeout=5)"
+            ".status==200 else 1)"
+        )
         agent_service: dict = {
             "build": ".",
             "ports": [f"{self.app._port}:{self.app._port}"],
@@ -96,10 +103,7 @@ CMD ["python", "server.py"]
             "networks": [self.network],
             "restart": "unless-stopped",
             "healthcheck": {
-                "test": [
-                    "CMD", "curl", "-f",
-                    f"http://localhost:{self.app._port}{self.app._health_path}"
-                ],
+                "test": ["CMD", "python", "-c", probe_script],
                 "interval": "30s",
                 "timeout": "10s",
                 "retries": 3,

@@ -11,10 +11,10 @@ Usage:
 from __future__ import annotations
 
 from agentdeploy.core.app import AgentApp
-from agentdeploy.targets.kubernetes import KubernetesTarget
-from agentdeploy.targets.docker_compose import DockerComposeTarget
-from agentdeploy.targets.lambda_target import LambdaTarget
 from agentdeploy.targets.cloud_run import CloudRunTarget
+from agentdeploy.targets.docker_compose import DockerComposeTarget
+from agentdeploy.targets.kubernetes import KubernetesTarget
+from agentdeploy.targets.lambda_target import LambdaTarget
 
 
 class DeployBuilder:

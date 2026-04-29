@@ -7,9 +7,8 @@ and any custom callable agent (BYOF — Bring Your Own Framework).
 
 from __future__ import annotations
 
-import inspect
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -51,7 +50,7 @@ class AgentApp:
     _health_path: str = field(default="/health", init=False)
     _port: int = field(default=8080, init=False)
 
-    def wrap(self, agent: Any) -> "AgentApp":
+    def wrap(self, agent: Any) -> AgentApp:
         """
         Detect the framework of `agent` automatically and wrap it.
 
@@ -63,7 +62,7 @@ class AgentApp:
         self._adapter = AdapterRegistry.detect(agent)
         return self
 
-    def env(self, key: str, value: str = "", *, from_secret: str = "") -> "AgentApp":
+    def env(self, key: str, value: str = "", *, from_secret: str = "") -> AgentApp:
         """Set an environment variable. Use from_secret for sensitive values."""
         if from_secret:
             self._secrets.append(from_secret)
@@ -72,18 +71,18 @@ class AgentApp:
             self._env[key] = value
         return self
 
-    def resources(self, *, memory_mb: int = 1024, timeout_seconds: int = 300) -> "AgentApp":
+    def resources(self, *, memory_mb: int = 1024, timeout_seconds: int = 300) -> AgentApp:
         """Set resource limits for the container."""
         self._memory_mb = memory_mb
         self._timeout_seconds = timeout_seconds
         return self
 
-    def port(self, port: int) -> "AgentApp":
+    def port(self, port: int) -> AgentApp:
         """Override the default HTTP port (default: 8080)."""
         self._port = port
         return self
 
-    def health_path(self, path: str) -> "AgentApp":
+    def health_path(self, path: str) -> AgentApp:
         """Override the default health check path (default: /health)."""
         self._health_path = path
         return self

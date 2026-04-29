@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Generated Kubernetes and Docker Compose images no longer install `curl`
+  for healthchecks. The healthcheck now uses stdlib `urllib`, which keeps
+  the image slim and removes the apt-get layer.
+
+### Fixed
+- `LambdaTarget.build()` now raises `ValueError` immediately when no
+  `role_arn` is supplied instead of writing a placeholder ARN that fails
+  silently on first deploy. The ARN is also validated to start with
+  `arn:aws:iam::`.
+- `_OpenAIAgentAdapter` validation and detection no longer match unrelated
+  modules whose path contains the substrings "openai" or "agents"
+  (e.g. `langchain.agents`, `llama_index.agent`). Detection requires the
+  module root to be `agents`, `openai.agents`, or `openai_agents`, and the
+  class name to be `Agent`.
+
 ## [0.1.0] - 2026-04-28
 
 ### Added
