@@ -1,0 +1,60 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+.eggs/
+*.egg-info/
+*.egg
+build/
+dist/
+sdist/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# uv
+.uv/
+uv.lock
+
+# --- Tooling ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# --- Editors / OS ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- AgentDeploy generated artifacts ---
+deploy/
+*.local.yaml
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+*.pem
