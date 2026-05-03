@@ -26,8 +26,12 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
-      - name: Install
-        run: uv sync --all-extras --dev || uv pip install -e ".[dev]"
+      - name: Create venv and install
+        # No uv.lock yet, and the runner's system Python is PEP 668 externally
+        # managed — install into a project venv instead of --system.
+        run: |
+          uv venv --python 3.12
+          uv pip install -e ".[dev]"
 
       - name: Ruff lint
         run: uv run ruff check src tests
@@ -59,11 +63,15 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ matrix.python-version }}
 
-      - name: Install
-        run: uv pip install --system -e ".[dev]"
+      - name: Create venv and install
+        # The runner's system Python is PEP 668 externally managed; install
+        # into a project venv and run pytest through `uv run`.
+        run: |
+          uv venv --python ${{ matrix.python-version }}
+          uv pip install -e ".[dev]"
 
       - name: Pytest
-        run: pytest tests/ -v --cov=agentdeploy --cov-report=term-missing
+        run: uv run pytest tests/ -v --cov=agentdeploy --cov-report=term-missing
 
   build:
     name: Build distributions
