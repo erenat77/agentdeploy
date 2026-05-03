@@ -20,6 +20,8 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          # We don't ship a uv.lock — invalidate the cache when pyproject.toml changes.
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Set up Python
         run: uv python install 3.12
@@ -51,6 +53,8 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          # We don't ship a uv.lock — invalidate the cache when pyproject.toml changes.
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Set up Python
         run: uv python install ${{ matrix.python-version }}
