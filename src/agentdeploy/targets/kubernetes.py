@@ -149,16 +149,14 @@ class KubernetesTarget:
     def _generate_dockerfile(self, cfg, adapter) -> str:
         extras = adapter.pip_extras()
         pip_install = " ".join(extras) if extras else ""
-        env_lines = "\n".join(
-            f'ENV {k}="{v}"' for k, v in cfg.env_vars.items()
-        )
+        env_lines = "\n".join(f'ENV {k}="{v}"' for k, v in cfg.env_vars.items())
         # Healthcheck uses stdlib urllib so we don't need curl — keeps the
         # image slim and avoids an apt-get layer + cache invalidation.
         probe_url = f"http://localhost:{self.app._port}{self.app._health_path}"
         healthcheck_probe = (
-            "python -c \"import urllib.request,sys; "
+            'python -c "import urllib.request,sys; '
             f"sys.exit(0 if urllib.request.urlopen('{probe_url}',timeout=5)"
-            ".status==200 else 1)\""
+            '.status==200 else 1)"'
         )
         return f"""FROM {self._base_image}
 
@@ -184,15 +182,17 @@ CMD ["python", "server.py"]
         full_image = f"{self.registry}/{self.image}" if self.registry else self.image
         env_vars = [{"name": k, "value": v} for k, v in cfg.env_vars.items()]
         for secret_name in cfg.secrets:
-            env_vars.append({
-                "name": secret_name.upper().replace("-", "_"),
-                "valueFrom": {
-                    "secretKeyRef": {
-                        "name": f"{cfg.name}-secrets",
-                        "key": secret_name,
-                    }
-                },
-            })
+            env_vars.append(
+                {
+                    "name": secret_name.upper().replace("-", "_"),
+                    "valueFrom": {
+                        "secretKeyRef": {
+                            "name": f"{cfg.name}-secrets",
+                            "key": secret_name,
+                        }
+                    },
+                }
+            )
         return {
             "apiVersion": "apps/v1",
             "kind": "Deployment",
@@ -207,33 +207,41 @@ CMD ["python", "server.py"]
                 "template": {
                     "metadata": {"labels": {"app": cfg.name, "version": cfg.version}},
                     "spec": {
-                        "containers": [{
-                            "name": cfg.name,
-                            "image": full_image,
-                            "imagePullPolicy": "Always",
-                            "ports": [{"containerPort": self.app._port}],
-                            "env": env_vars,
-                            "resources": {
-                                "requests": {
-                                    "memory": f"{cfg.memory_mb // 2}Mi",
-                                    "cpu": "250m",
+                        "containers": [
+                            {
+                                "name": cfg.name,
+                                "image": full_image,
+                                "imagePullPolicy": "Always",
+                                "ports": [{"containerPort": self.app._port}],
+                                "env": env_vars,
+                                "resources": {
+                                    "requests": {
+                                        "memory": f"{cfg.memory_mb // 2}Mi",
+                                        "cpu": "250m",
+                                    },
+                                    "limits": {
+                                        "memory": f"{cfg.memory_mb}Mi",
+                                        "cpu": "1000m",
+                                    },
                                 },
-                                "limits": {
-                                    "memory": f"{cfg.memory_mb}Mi",
-                                    "cpu": "1000m",
+                                "livenessProbe": {
+                                    "httpGet": {
+                                        "path": self.app._health_path,
+                                        "port": self.app._port,
+                                    },
+                                    "initialDelaySeconds": 15,
+                                    "periodSeconds": 30,
                                 },
-                            },
-                            "livenessProbe": {
-                                "httpGet": {"path": self.app._health_path, "port": self.app._port},
-                                "initialDelaySeconds": 15,
-                                "periodSeconds": 30,
-                            },
-                            "readinessProbe": {
-                                "httpGet": {"path": self.app._health_path, "port": self.app._port},
-                                "initialDelaySeconds": 5,
-                                "periodSeconds": 10,
-                            },
-                        }],
+                                "readinessProbe": {
+                                    "httpGet": {
+                                        "path": self.app._health_path,
+                                        "port": self.app._port,
+                                    },
+                                    "initialDelaySeconds": 5,
+                                    "periodSeconds": 10,
+                                },
+                            }
+                        ],
                         "terminationGracePeriodSeconds": cfg.timeout_seconds,
                     },
                 },
@@ -265,16 +273,18 @@ CMD ["python", "server.py"]
                 },
                 "minReplicas": self._autoscale_min,
                 "maxReplicas": self._autoscale_max,
-                "metrics": [{
-                    "type": "Resource",
-                    "resource": {
-                        "name": "cpu",
-                        "target": {
-                            "type": "Utilization",
-                            "averageUtilization": self._autoscale_cpu_pct,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": self._autoscale_cpu_pct,
+                            },
                         },
-                    },
-                }],
+                    }
+                ],
             },
         }
 

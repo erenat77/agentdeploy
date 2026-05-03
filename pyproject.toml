@@ -1,3 +1,56 @@
+# =============================================================================
+# PRE-PUSH / PRE-RELEASE CHECKLIST
+# -----------------------------------------------------------------------------
+# Run these before `git push` and ALWAYS before tagging a release.
+# Each step is fast (~5–30 s). If any step fails, fix it before pushing.
+#
+#   1. Activate the project venv (don't pollute system / global Python)
+#        source .venv/bin/activate
+#        which python                          # must point inside .venv
+#
+#   2. Lint
+#        ruff check src tests                  # -> "All checks passed!"
+#        ruff format --check src tests         # -> no diff
+#
+#   3. Type-check (advisory until type coverage is in shape)
+#        mypy src/agentdeploy
+#
+#   4. Tests
+#        pytest tests/ -v                      # 26+ tests, all green
+#        pytest tests/ --cov=agentdeploy --cov-report=term-missing
+#
+#   5. CLI smoke
+#        agentdeploy version                   # prints "AgentDeploy v0.1.0"
+#
+#   6. Build distributions (catches packaging / metadata errors early)
+#        rm -rf dist/
+#        uv build                              # or: python -m build
+#        ls dist/                              # expect .tar.gz + .whl
+#
+#   7. Inspect the wheel (sanity-check what's actually shipping)
+#        unzip -l dist/agentdeploy-*.whl | grep -v __pycache__
+#
+#   8. Optional: install the wheel into a throwaway venv to confirm import
+#        uv venv /tmp/agentdeploy-isolated
+#        source /tmp/agentdeploy-isolated/bin/activate
+#        uv pip install dist/agentdeploy-*.whl
+#        agentdeploy version
+#        python -c "from agentdeploy import AgentApp, deploy; print('ok')"
+#        deactivate
+#
+# -----------------------------------------------------------------------------
+# RELEASE-ONLY (after step 1–8 are green and changes are pushed to main)
+# -----------------------------------------------------------------------------
+#   9. Bump version in this file [project].version AND src/agentdeploy/__init__.py
+#  10. Move CHANGELOG.md [Unreleased] entries into a new dated section
+#  11. Commit + tag + push:
+#        git commit -am "release: vX.Y.Z"
+#        git tag vX.Y.Z
+#        git push origin main --tags
+#  12. The .github/workflows/release.yml workflow takes over and publishes
+#      to PyPI via Trusted Publishing, then creates a GitHub Release.
+# =============================================================================
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

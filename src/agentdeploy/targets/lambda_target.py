@@ -76,7 +76,7 @@ class LambdaTarget:
         return f"""
 import json, os, asyncio
 
-# Framework imports injected by adapter: {', '.join(extras)}
+# Framework imports injected by adapter: {", ".join(extras)}
 from agent import agent  # your agent module
 
 def handler(event, context):

@@ -59,9 +59,7 @@ class _CrewAIAdapter(AgentAdapter):
         cls_name = type(self.agent).__name__
         module = type(self.agent).__module__
         if "crewai" not in module and cls_name != "Crew":
-            raise ValueError(
-                f"Expected a CrewAI Crew object, got {cls_name} from {module}."
-            )
+            raise ValueError(f"Expected a CrewAI Crew object, got {cls_name} from {module}.")
 
     def pip_extras(self) -> list[str]:
         return ["crewai>=0.70"]
@@ -110,9 +108,7 @@ class _OpenAIAgentAdapter(AgentAdapter):
                 "and pass the Agent instance to .wrap()."
             )
         if cls_name != "Agent":
-            raise ValueError(
-                f"Expected an OpenAI Agents SDK Agent class, got {cls_name}."
-            )
+            raise ValueError(f"Expected an OpenAI Agents SDK Agent class, got {cls_name}.")
 
     def pip_extras(self) -> list[str]:
         return ["openai>=1.50", "openai-agents>=0.1"]
@@ -150,9 +146,7 @@ class _CallableAdapter(AgentAdapter):
 
     def validate(self) -> None:
         if not callable(self.agent):
-            raise ValueError(
-                f"Expected a callable agent, got {type(self.agent).__name__}."
-            )
+            raise ValueError(f"Expected a callable agent, got {type(self.agent).__name__}.")
 
     def pip_extras(self) -> list[str]:
         return []
@@ -201,11 +195,7 @@ class AdapterRegistry:
         cls_name = type(agent).__name__
 
         # LangGraph (most specific)
-        if (
-            "langgraph" in module
-            or "CompiledGraph" in cls_name
-            or "CompiledStateGraph" in cls_name
-        ):
+        if "langgraph" in module or "CompiledGraph" in cls_name or "CompiledStateGraph" in cls_name:
             return _LangGraphAdapter(agent)
         # CrewAI
         if "crewai" in module or cls_name == "Crew":
@@ -213,8 +203,7 @@ class AdapterRegistry:
         # OpenAI Agents SDK — strict module-root match to avoid catching
         # langchain.agents / llama_index.agent / etc.
         if (
-            module == "agents"
-            or module.startswith(_OpenAIAgentAdapter._MODULE_PREFIXES)
+            module == "agents" or module.startswith(_OpenAIAgentAdapter._MODULE_PREFIXES)
         ) and cls_name == "Agent":
             return _OpenAIAgentAdapter(agent)
         # Fallback: any callable

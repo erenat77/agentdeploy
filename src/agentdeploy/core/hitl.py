@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 class HITLDecision(StrEnum):
     APPROVE = "approve"
-    REJECT  = "reject"
-    MODIFY  = "modify"
+    REJECT = "reject"
+    MODIFY = "modify"
 
 
 @dataclass
@@ -125,9 +125,7 @@ class HITLGate:
         if future and not future.done():
             future.set_result(result)
 
-    async def _wait_for_webhook(
-        self, checkpoint_id: str, payload: dict
-    ) -> CheckpointResult:
+    async def _wait_for_webhook(self, checkpoint_id: str, payload: dict) -> CheckpointResult:
         import httpx
 
         loop = asyncio.get_event_loop()
@@ -160,15 +158,13 @@ class HITLGate:
         finally:
             self._pending.pop(checkpoint_id, None)
 
-    async def _notify_slack(
-        self, checkpoint_id: str, payload: dict
-    ) -> CheckpointResult:
+    async def _notify_slack(self, checkpoint_id: str, payload: dict) -> CheckpointResult:
         import httpx
 
         message = {
             "text": f"*HITL checkpoint* `{checkpoint_id}`\n{payload.get('description', '')}\n"
-                    f"State: ```{payload.get('state', '')}```\n"
-                    f"Reply with `/approve {checkpoint_id}` or `/reject {checkpoint_id}`"
+            f"State: ```{payload.get('state', '')}```\n"
+            f"Reply with `/approve {checkpoint_id}` or `/reject {checkpoint_id}`"
         }
         try:
             async with httpx.AsyncClient() as client:

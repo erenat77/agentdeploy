@@ -28,17 +28,18 @@ try:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
 
 
 COST_PER_1K_TOKENS: dict[str, dict[str, float]] = {
-    "gpt-4o":            {"prompt": 0.005,   "completion": 0.015},
-    "gpt-4o-mini":       {"prompt": 0.00015, "completion": 0.0006},
-    "claude-sonnet-4-6": {"prompt": 0.003,   "completion": 0.015},
-    "claude-opus-4-6":   {"prompt": 0.015,   "completion": 0.075},
-    "gemini-1.5-pro":    {"prompt": 0.0035,  "completion": 0.0105},
+    "gpt-4o": {"prompt": 0.005, "completion": 0.015},
+    "gpt-4o-mini": {"prompt": 0.00015, "completion": 0.0006},
+    "claude-sonnet-4-6": {"prompt": 0.003, "completion": 0.015},
+    "claude-opus-4-6": {"prompt": 0.015, "completion": 0.075},
+    "gemini-1.5-pro": {"prompt": 0.0035, "completion": 0.0105},
 }
 
 

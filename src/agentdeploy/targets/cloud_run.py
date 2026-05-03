@@ -101,17 +101,19 @@ CMD ["python", "server.py"]
                     "spec": {
                         "containerConcurrency": self._concurrency,
                         "timeoutSeconds": cfg.timeout_seconds,
-                        "containers": [{
-                            "image": image,
-                            "ports": [{"containerPort": self.app._port}],
-                            "env": env_vars,
-                            "resources": {
-                                "limits": {
-                                    "memory": f"{cfg.memory_mb}Mi",
-                                    "cpu": "1000m",
-                                }
-                            },
-                        }],
+                        "containers": [
+                            {
+                                "image": image,
+                                "ports": [{"containerPort": self.app._port}],
+                                "env": env_vars,
+                                "resources": {
+                                    "limits": {
+                                        "memory": f"{cfg.memory_mb}Mi",
+                                        "cpu": "1000m",
+                                    }
+                                },
+                            }
+                        ],
                     },
                 }
             },

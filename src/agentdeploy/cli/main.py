@@ -31,6 +31,7 @@ console = Console()
 def version():
     """Print the installed AgentDeploy version."""
     from agentdeploy import __version__
+
     console.print(f"[bold]AgentDeploy[/bold] v{__version__}")
 
 
@@ -39,12 +40,14 @@ def init(
     name: str = typer.Argument(..., help="Agent name (used as directory and K8s name)"),
     framework: str = typer.Option(
         "langgraph",
-        "--framework", "-f",
+        "--framework",
+        "-f",
         help="Agent framework: langgraph | crewai | openai | callable",
     ),
     target: str = typer.Option(
         "kubernetes",
-        "--target", "-t",
+        "--target",
+        "-t",
         help="Deploy target: kubernetes | docker-compose | lambda | cloud-run",
     ),
 ):
@@ -61,21 +64,24 @@ def init(
     (proj_dir / ".gitignore").write_text("deploy/\n__pycache__/\n.env\n*.pyc\n")
     (proj_dir / ".env.example").write_text("OPENAI_API_KEY=\nANTHROPIC_API_KEY=\n")
 
-    console.print(Panel(
-        f"[bold green]Project '{name}' created.[/bold green]\n\n"
-        f"  [dim]cd {name}[/dim]\n"
-        f"  [dim]# Edit agent.py with your {framework} agent[/dim]\n"
-        f"  [dim]# Edit agentdeploy_config.py to configure deployment[/dim]\n"
-        f"  [dim]agentdeploy build[/dim]",
-        title="agentdeploy init",
-    ))
+    console.print(
+        Panel(
+            f"[bold green]Project '{name}' created.[/bold green]\n\n"
+            f"  [dim]cd {name}[/dim]\n"
+            f"  [dim]# Edit agent.py with your {framework} agent[/dim]\n"
+            f"  [dim]# Edit agentdeploy_config.py to configure deployment[/dim]\n"
+            f"  [dim]agentdeploy build[/dim]",
+            title="agentdeploy init",
+        )
+    )
 
 
 @app.command()
 def validate(
     config: str = typer.Option(
         "agentdeploy_config.py",
-        "--config", "-c",
+        "--config",
+        "-c",
         help="Path to the agentdeploy config file",
     ),
 ):
@@ -94,13 +100,15 @@ def validate(
     table = Table(title="AgentApp validation", show_header=False)
     table.add_column("Field", style="dim")
     table.add_column("Value")
-    table.add_row("Name",      agent_app.name)
-    table.add_row("Version",   agent_app.version)
-    table.add_row("Framework", agent_app._adapter.framework_name if agent_app._adapter else "not wrapped")
-    table.add_row("Memory",    f"{agent_app._memory_mb} MB")
-    table.add_row("Timeout",   f"{agent_app._timeout_seconds}s")
-    table.add_row("Port",      str(agent_app._port))
-    table.add_row("Secrets",   ", ".join(agent_app._secrets) or "none")
+    table.add_row("Name", agent_app.name)
+    table.add_row("Version", agent_app.version)
+    table.add_row(
+        "Framework", agent_app._adapter.framework_name if agent_app._adapter else "not wrapped"
+    )
+    table.add_row("Memory", f"{agent_app._memory_mb} MB")
+    table.add_row("Timeout", f"{agent_app._timeout_seconds}s")
+    table.add_row("Port", str(agent_app._port))
+    table.add_row("Secrets", ", ".join(agent_app._secrets) or "none")
     console.print(table)
     console.print("[green]Validation passed.[/green]")
 
@@ -109,12 +117,14 @@ def validate(
 def build(
     config: str = typer.Option(
         "agentdeploy_config.py",
-        "--config", "-c",
+        "--config",
+        "-c",
         help="Path to the agentdeploy config file",
     ),
     output: str = typer.Option(
         "./deploy",
-        "--output", "-o",
+        "--output",
+        "-o",
         help="Output directory for generated artifacts",
     ),
     dry_run: bool = typer.Option(
@@ -144,20 +154,18 @@ def build(
 
     try:
         from agentdeploy.core.deploy import deploy as _deploy
-        result = (
-            _deploy(agent_app)
-            .to_kubernetes()
-            .with_output_dir(output)
-            .build()
-        )
+
+        result = _deploy(agent_app).to_kubernetes().with_output_dir(output).build()
     except Exception as e:
         console.print(f"[red]Build failed:[/red] {e}")
         raise typer.Exit(1) from e
 
-    console.print(Panel(
-        "\n".join(f"  [dim]{f}[/dim]" for f in result.files),
-        title=f"[green]Build complete[/green] — {result.output_dir}",
-    ))
+    console.print(
+        Panel(
+            "\n".join(f"  [dim]{f}[/dim]" for f in result.files),
+            title=f"[green]Build complete[/green] — {result.output_dir}",
+        )
+    )
     console.print("\n[bold]Next steps:[/bold]")
     for step in result.next_steps:
         console.print(f"  {step}")
@@ -224,7 +232,9 @@ crew = Crew(agents=[researcher], tasks=[task])
 
 
 def _config_stub(name: str, framework: str, target: str) -> str:
-    agent_obj = {"langgraph": "graph", "crewai": "crew", "callable": "agent"}.get(framework, "agent")
+    agent_obj = {"langgraph": "graph", "crewai": "crew", "callable": "agent"}.get(
+        framework, "agent"
+    )
     return f"""from agentdeploy import AgentApp, deploy
 from agent import {agent_obj}
 
